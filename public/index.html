@@ -51,27 +51,30 @@
     function eventRow(ev){
       const s = TYPE_STYLE[ev.type] || TYPE_STYLE.install;
       const time = fmtTime(ev.startDateTime);
-      return `<div class="text-xs rounded-md border px-2 py-1.5 ${s.cls}">
-        <div class="font-medium leading-snug">${esc(ev.title)}</div>
+      const inner = `<div class="font-medium leading-snug">${esc(ev.title)}</div>
         <div class="flex items-center gap-1.5 mt-0.5 text-[11px]">
           <span>${esc(fmtDate(ev.date))}</span>
           ${time ? `<span class="opacity-50">·</span><span>${esc(time)}</span>` : ""}
           <span class="ml-auto opacity-70">${esc(daysUntil(ev.date))}</span>
-        </div>
-      </div>`;
+        </div>`;
+      const cls = `block text-xs rounded-md border px-2 py-1.5 ${s.cls}`;
+      return ev.htmlLink
+        ? `<a href="${esc(ev.htmlLink)}" target="_blank" rel="noopener" class="${cls} hover:brightness-95 transition">${inner}</a>`
+        : `<div class="${cls}">${inner}</div>`;
     }
 
+    const TASKS_URL = "https://tasks.google.com/";
     function taskRow(t){
       const subs = t.subtasks || [];
       return `<li>
         <div class="flex items-start gap-2">
           <span class="mt-0.5 ${t.done ? "text-emerald-500" : "text-slate-300"}">${t.done ? "☑" : "☐"}</span>
-          <span class="text-xs leading-snug ${t.done ? "text-slate-400 line-through" : "text-slate-700"}">${esc(t.text)}</span>
+          <a href="${TASKS_URL}" target="_blank" rel="noopener" class="text-xs leading-snug hover:underline ${t.done ? "text-slate-400 line-through" : "text-slate-700"}">${esc(t.text)}</a>
         </div>
         ${subs.length ? `<ul class="mt-1 ml-5 space-y-1 border-l border-slate-100 pl-2">
           ${subs.map(s => `<li class="flex items-start gap-2">
             <span class="mt-0.5 ${s.done ? "text-emerald-500" : "text-slate-300"}">${s.done ? "☑" : "☐"}</span>
-            <span class="text-[11px] leading-snug ${s.done ? "text-slate-400 line-through" : "text-slate-600"}">${esc(s.text)}</span>
+            <a href="${TASKS_URL}" target="_blank" rel="noopener" class="text-[11px] leading-snug hover:underline ${s.done ? "text-slate-400 line-through" : "text-slate-600"}">${esc(s.text)}</a>
           </li>`).join("")}
         </ul>` : ""}
       </li>`;
