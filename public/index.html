@@ -43,19 +43,37 @@
     function fmtDate(d){ if(!d) return ""; const dt=new Date(d+"T00:00:00"); return dt.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"}); }
     function daysUntil(d){ const today=new Date(); today.setHours(0,0,0,0); const dt=new Date(d+"T00:00:00"); const n=Math.round((dt-today)/86400000); if(n===0)return"Today"; if(n===1)return"Tomorrow"; if(n<0)return Math.abs(n)+"d ago"; return"in "+n+"d"; }
 
+    function fmtTime(iso){
+      if(!iso) return "";
+      try { return new Date(iso).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"}); }
+      catch(e){ return ""; }
+    }
     function eventRow(ev){
       const s = TYPE_STYLE[ev.type] || TYPE_STYLE.install;
-      return `<div class="flex items-center gap-2 text-xs rounded-md border px-2 py-1.5 ${s.cls}">
-        <span class="font-medium">${s.label}</span><span class="opacity-40">·</span>
-        <span>${esc(fmtDate(ev.date))}</span>
-        <span class="ml-auto text-[11px] opacity-70">${esc(daysUntil(ev.date))}</span>
+      const time = fmtTime(ev.startDateTime);
+      return `<div class="text-xs rounded-md border px-2 py-1.5 ${s.cls}">
+        <div class="font-medium leading-snug">${esc(ev.title)}</div>
+        <div class="flex items-center gap-1.5 mt-0.5 text-[11px]">
+          <span>${esc(fmtDate(ev.date))}</span>
+          ${time ? `<span class="opacity-50">·</span><span>${esc(time)}</span>` : ""}
+          <span class="ml-auto opacity-70">${esc(daysUntil(ev.date))}</span>
+        </div>
       </div>`;
     }
 
     function taskRow(t){
-      return `<li class="flex items-start gap-2">
-        <span class="mt-0.5 ${t.done ? "text-emerald-500" : "text-slate-300"}">${t.done ? "☑" : "☐"}</span>
-        <span class="text-xs leading-snug ${t.done ? "text-slate-400 line-through" : "text-slate-700"}">${esc(t.text)}</span>
+      const subs = t.subtasks || [];
+      return `<li>
+        <div class="flex items-start gap-2">
+          <span class="mt-0.5 ${t.done ? "text-emerald-500" : "text-slate-300"}">${t.done ? "☑" : "☐"}</span>
+          <span class="text-xs leading-snug ${t.done ? "text-slate-400 line-through" : "text-slate-700"}">${esc(t.text)}</span>
+        </div>
+        ${subs.length ? `<ul class="mt-1 ml-5 space-y-1 border-l border-slate-100 pl-2">
+          ${subs.map(s => `<li class="flex items-start gap-2">
+            <span class="mt-0.5 ${s.done ? "text-emerald-500" : "text-slate-300"}">${s.done ? "☑" : "☐"}</span>
+            <span class="text-[11px] leading-snug ${s.done ? "text-slate-400 line-through" : "text-slate-600"}">${esc(s.text)}</span>
+          </li>`).join("")}
+        </ul>` : ""}
       </li>`;
     }
 
@@ -66,11 +84,16 @@
       const hasCustomer = job.customer && job.customer !== "—";
       const title = hasCustomer ? job.customer : clip(job.name, 60);
       const subline = hasCustomer ? clip(job.name, 70) : "";
+      const driveQuery = encodeURIComponent(hasCustomer ? job.customer : job.name);
+      const driveUrl = `https://drive.google.com/drive/search?q=${driveQuery}`;
       return `<div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
         <div class="px-4 pt-4 pb-3 border-b border-slate-100">
           <div class="flex items-baseline justify-between gap-2">
             <h3 class="font-semibold text-slate-900 text-[15px] leading-snug" title="${esc(job.name)}">${esc(title)}</h3>
-            <span class="text-[11px] font-mono text-slate-400 shrink-0">${esc(job.id)}</span>
+            <div class="shrink-0 text-right leading-tight">
+              <div class="text-[11px] font-mono text-slate-400">${esc(job.id)}</div>
+              ${job.city ? `<div class="text-[11px] text-slate-500 mt-0.5">${esc(job.city)}</div>` : ""}
+            </div>
           </div>
           ${subline ? `<p class="text-sm text-slate-500 mt-0.5">${esc(subline)}</p>` : ""}
           ${job.address ? `<p class="text-xs text-slate-400 mt-1">${esc(job.address)}</p>` : ""}
@@ -86,9 +109,10 @@
             ${tasks.length ? tasks.map(taskRow).join("") : `<li class="text-xs text-slate-400 italic">No matched to-dos</li>`}
           </ul>
         </div>
-        ${job.crmUrl ? `<div class="px-4 py-2.5 border-t border-slate-100">
-          <a href="${esc(job.crmUrl)}" target="_blank" rel="noopener" class="text-xs font-medium text-sky-600 hover:text-sky-700 hover:underline inline-flex items-center gap-1">📎 Files in CRM →</a>
-        </div>` : ""}
+        <div class="px-4 py-2.5 border-t border-slate-100 space-y-1.5">
+          ${job.crmUrl ? `<a href="${esc(job.crmUrl)}" target="_blank" rel="noopener" class="block text-xs font-medium text-sky-600 hover:text-sky-700 hover:underline">📎 Files in CRM →</a>` : ""}
+          <a href="${driveUrl}" target="_blank" rel="noopener" class="block text-xs font-medium text-sky-600 hover:text-sky-700 hover:underline">📁 Drive folder →</a>
+        </div>
       </div>`;
     }
 
