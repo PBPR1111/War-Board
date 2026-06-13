@@ -84,8 +84,8 @@
       const hasCustomer = job.customer && job.customer !== "—";
       const title = hasCustomer ? job.customer : clip(job.name, 60);
       const subline = hasCustomer ? clip(job.name, 70) : "";
-      const driveQuery = encodeURIComponent(hasCustomer ? job.customer : job.name);
-      const driveUrl = `https://drive.google.com/drive/search?q=${driveQuery}`;
+      const driveQuery = encodeURIComponent("type:folder " + (hasCustomer ? job.customer : job.name));
+      const driveUrl = `https://drive.google.com/drive/search?q=${driveQuery}&authuser=admin@pbprinc.com`;
       return `<div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
         <div class="px-4 pt-4 pb-3 border-b border-slate-100">
           <div class="flex items-baseline justify-between gap-2">
