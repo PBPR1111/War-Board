@@ -165,31 +165,61 @@ app.get("/api/debug/leap-customer", async (req, res) => {
 });
 
 // ---- Combined board payload (jobs + matched events + matched tasks) ----
-app.get("/api/board-data", async (req, res) => {
-  try {
-    const jobs = await leap.fetchJobs();
-    let events = [];
-    let tasks = [];
-    let googleError = null;
-    if (googleSvc.isConnected()) {
-      try {
-        [events, tasks] = await Promise.all([
-          googleSvc.fetchCalendarEvents(),
-          googleSvc.fetchTasks(),
-        ]);
-      } catch (e) {
-        googleError = e.message;
-      }
+// Cached in memory so all viewers + auto-refreshes share one upstream pull,
+// which keeps us well under Leap's rate limit. Stale data is served if a
+// refresh fails (e.g. a transient Leap 429), so the board never goes blank.
+const BOARD_CACHE_MS = Number(process.env.BOARD_CACHE_MS) || 10 * 60 * 1000;
+let boardCache = null; // { payload, ts }
+let boardInFlight = null;
+
+async function buildBoardPayload() {
+  const jobs = await leap.fetchJobs();
+  let events = [];
+  let tasks = [];
+  let googleError = null;
+  if (googleSvc.isConnected()) {
+    try {
+      [events, tasks] = await Promise.all([
+        googleSvc.fetchCalendarEvents(),
+        googleSvc.fetchTasks(),
+      ]);
+    } catch (e) {
+      googleError = e.message;
     }
-    const board = buildBoard(jobs, events, tasks);
-    res.json({
-      stages: leap.STAGES,
-      googleConnected: googleSvc.isConnected(),
-      googleError,
-      generatedAt: new Date().toISOString(),
-      ...board,
-    });
+  }
+  const board = buildBoard(jobs, events, tasks);
+  return {
+    stages: leap.STAGES,
+    googleConnected: googleSvc.isConnected(),
+    googleError,
+    generatedAt: new Date().toISOString(),
+    ...board,
+  };
+}
+
+app.get("/api/board-data", async (req, res) => {
+  const fresh = boardCache && Date.now() - boardCache.ts < BOARD_CACHE_MS;
+  const force = req.query.force === "1";
+  if (fresh && !force) {
+    return res.json({ ...boardCache.payload, cached: true });
+  }
+  try {
+    // Coalesce concurrent rebuilds into a single upstream fetch.
+    if (!boardInFlight) {
+      boardInFlight = buildBoardPayload().finally(() => { boardInFlight = null; });
+    }
+    const payload = await boardInFlight;
+    boardCache = { payload, ts: Date.now() };
+    res.json(payload);
   } catch (e) {
+    // On failure, fall back to stale cache rather than breaking the board.
+    if (boardCache) {
+      return res.json({
+        ...boardCache.payload,
+        cached: true,
+        refreshError: e.message,
+      });
+    }
     res.status(502).json({ error: e.message });
   }
 });

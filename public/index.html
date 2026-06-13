@@ -98,14 +98,14 @@
       </section>`;
     }
 
-    async function load(){
+    async function load(force){
       const board = document.getElementById("board");
       const banner = document.getElementById("banner");
       const statusEl = document.getElementById("status");
       board.innerHTML = `<p class="text-sm text-slate-400">Loading…</p>`;
       banner.innerHTML = "";
       try {
-        const res = await fetch("/api/board-data");
+        const res = await fetch("/api/board-data" + (force ? "?force=1" : ""));
         const data = await res.json();
         if (data.error) throw new Error(data.error);
 
@@ -122,6 +122,9 @@
         if (data.googleError) {
           bits.push(`<div class="mb-4 rounded-md border border-red-200 bg-red-50 text-red-700 text-sm px-4 py-3">Google error: ${esc(data.googleError)}</div>`);
         }
+        if (data.refreshError) {
+          bits.push(`<div class="mb-4 rounded-md border border-amber-200 bg-amber-50 text-amber-800 text-sm px-4 py-3">Showing recent data — couldn't refresh just now (${esc(data.refreshError)}). Try again shortly.</div>`);
+        }
         if (unstaged.length) {
           bits.push(`<div class="mb-4 rounded-md border border-slate-200 bg-white text-slate-600 text-sm px-4 py-3">
             ${unstaged.length} job(s) didn't map to Lead/Estimate/Work (raw stage values: ${esc([...new Set(unstaged.map(j=>j.rawStage))].slice(0,6).join(", "))}). We can adjust the mapping.</div>`);
@@ -134,9 +137,9 @@
       }
     }
 
-    document.getElementById("refresh").addEventListener("click", load);
+    document.getElementById("refresh").addEventListener("click", () => load(true));
     load();
-    setInterval(load, 20 * 60 * 1000); // auto-refresh every 20 min
+    setInterval(() => load(), 20 * 60 * 1000); // auto-refresh every 20 min (served from cache)
   </script>
 </body>
 </html>
