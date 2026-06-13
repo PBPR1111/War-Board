@@ -101,7 +101,7 @@
       const hasCustomer = job.customer && job.customer !== "—";
       const title = hasCustomer ? job.customer : clip(job.name, 60);
       const subline = hasCustomer ? clip(job.name, 70) : "";
-      const driveQuery = encodeURIComponent("type:folder " + (hasCustomer ? job.customer : job.name));
+      const driveQuery = encodeURIComponent(hasCustomer ? job.customer : job.name);
       const driveUrl = `https://drive.google.com/drive/search?q=${driveQuery}&authuser=admin@pbprinc.com`;
       const sm = STAGE_META[job.stage] || {};
       return `<div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
