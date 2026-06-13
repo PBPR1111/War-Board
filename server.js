@@ -29,6 +29,39 @@ app.use(
 // ---- Health check (ungated, for Render) ----
 app.get("/healthz", (req, res) => res.send("ok"));
 
+// ---- PWA app manifest + icon (ungated, so iOS can fetch them) ----
+const APP_ICON_SRC =
+  "https://palmbeachpremierremodeling.com/wp-content/uploads/cropped-Palm-Beach-logo-270x270.png";
+
+app.get("/manifest.json", (req, res) => {
+  res.json({
+    name: "War Board",
+    short_name: "War Board",
+    start_url: "/",
+    display: "standalone",
+    background_color: "#000000",
+    theme_color: "#000000",
+    icons: [
+      { src: "/app-icon.png", sizes: "270x270", type: "image/png", purpose: "any maskable" },
+    ],
+  });
+});
+
+let _iconCache = null;
+app.get("/app-icon.png", async (req, res) => {
+  try {
+    if (!_iconCache) {
+      const r = await fetch(APP_ICON_SRC);
+      _iconCache = Buffer.from(await r.arrayBuffer());
+    }
+    res.set("Content-Type", "image/png");
+    res.set("Cache-Control", "public, max-age=86400");
+    res.send(_iconCache);
+  } catch (e) {
+    res.status(502).end();
+  }
+});
+
 // ---- Login (Google sign-in, company-only) ----
 app.get("/login", (req, res) => {
   if (!auth.requireLogin()) return res.redirect("/");

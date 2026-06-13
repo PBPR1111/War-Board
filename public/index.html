@@ -4,7 +4,14 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>War Board — Job Progress</title>
-  <link rel="icon" type="image/png" href="https://palmbeachpremierremodeling.com/wp-content/uploads/cropped-Palm-Beach-logo-270x270.png" />
+  <link rel="icon" type="image/png" href="/app-icon.png" />
+  <!-- Installable home-screen app (PWA) -->
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/app-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="War Board" />
+  <meta name="theme-color" content="#000000" />
   <script src="https://cdn.tailwindcss.com"></script>
   <style> body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; } </style>
 </head>
@@ -17,6 +24,7 @@
       </div>
       <div class="flex items-center gap-3">
         <span id="status" class="text-xs text-slate-400"></span>
+        <a href="https://www.jobprogress.com/app/#/task/pending" target="_blank" rel="noopener" class="text-xs font-medium text-slate-200 border border-neutral-700 rounded-md px-3 py-1.5 hover:bg-neutral-800">Leap Tasks ↗</a>
         <button id="refresh" class="text-xs font-medium text-slate-200 border border-neutral-700 rounded-md px-3 py-1.5 hover:bg-neutral-800">Refresh</button>
       </div>
     </div>
@@ -34,9 +42,10 @@
 
   <script>
     const STAGE_META = {
-      Lead:     { dot: "bg-sky-400",   banner: "bg-sky-100" },
-      Estimate: { dot: "bg-green-500", banner: "bg-green-100" },
-      Work:     { dot: "bg-amber-500", banner: "bg-amber-100" },
+      Lead:     { dot: "bg-purple-500", banner: "bg-purple-100" },
+      Estimate: { dot: "bg-blue-500",   banner: "bg-blue-100" },
+      Proposal: { dot: "bg-green-500",  banner: "bg-green-100" },
+      Work:     { dot: "bg-amber-500",  banner: "bg-amber-100" },
     };
     const TYPE_STYLE = {
       delivery: { label: "Delivery", cls: "text-amber-700 bg-amber-50 border-amber-200" },
@@ -162,7 +171,7 @@
       const shown = activeTab === "All" ? stages : [activeTab];
       const board = document.getElementById("board");
       board.className = activeTab === "All"
-        ? "grid grid-cols-1 md:grid-cols-3 gap-4"
+        ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4"
         : "grid grid-cols-1 gap-4 max-w-2xl mx-auto";
       board.innerHTML = shown.map(s => column(s, (lastData.jobs||[]).filter(j => j.stage === s))).join("");
       document.getElementById("status").textContent =
