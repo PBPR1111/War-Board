@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>War Board — Job Progress</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style> body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; } </style>
+</head>
+<body class="bg-slate-100">
+  <header class="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10">
+    <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
+      <div>
+        <h1 class="text-xl font-bold text-slate-900">War Board</h1>
+        <p class="text-xs text-slate-400 mt-0.5">Leap CRM · Google Calendar · Google Tasks</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <span id="status" class="text-xs text-slate-400"></span>
+        <button id="refresh" class="text-xs font-medium text-slate-600 border border-slate-200 rounded-md px-3 py-1.5 hover:bg-slate-50">Refresh</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+    <div id="banner"></div>
+    <div id="board" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+  </main>
+
+  <script>
+    const STAGE_META = {
+      Lead:     { dot: "bg-sky-400" },
+      Estimate: { dot: "bg-violet-400" },
+      Work:     { dot: "bg-emerald-400" },
+    };
+    const TYPE_STYLE = {
+      delivery: { label: "Delivery", cls: "text-amber-700 bg-amber-50 border-amber-200" },
+      install:  { label: "Install",  cls: "text-emerald-700 bg-emerald-50 border-emerald-200" },
+    };
+
+    function esc(s){ return String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+    function fmtDate(d){ if(!d) return ""; const dt=new Date(d+"T00:00:00"); return dt.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"}); }
+    function daysUntil(d){ const today=new Date(); today.setHours(0,0,0,0); const dt=new Date(d+"T00:00:00"); const n=Math.round((dt-today)/86400000); if(n===0)return"Today"; if(n===1)return"Tomorrow"; if(n<0)return Math.abs(n)+"d ago"; return"in "+n+"d"; }
+
+    function eventRow(ev){
+      const s = TYPE_STYLE[ev.type] || TYPE_STYLE.install;
+      return `<div class="flex items-center gap-2 text-xs rounded-md border px-2 py-1.5 ${s.cls}">
+        <span class="font-medium">${s.label}</span><span class="opacity-40">·</span>
+        <span>${esc(fmtDate(ev.date))}</span>
+        <span class="ml-auto text-[11px] opacity-70">${esc(daysUntil(ev.date))}</span>
+      </div>`;
+    }
+
+    function taskRow(t){
+      return `<li class="flex items-start gap-2">
+        <span class="mt-0.5 ${t.done ? "text-emerald-500" : "text-slate-300"}">${t.done ? "☑" : "☐"}</span>
+        <span class="text-xs leading-snug ${t.done ? "text-slate-400 line-through" : "text-slate-700"}">${esc(t.text)}</span>
+      </li>`;
+    }
+
+    function card(job){
+      const events = [...(job.calendarEvents||[])].sort((a,b)=>(a.date||"").localeCompare(b.date||""));
+      const tasks = job.tasks||[];
+      const done = tasks.filter(t=>t.done).length;
+      return `<div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+        <div class="px-4 pt-4 pb-3 border-b border-slate-100">
+          <div class="flex items-baseline justify-between gap-2">
+            <h3 class="font-semibold text-slate-900 text-[15px] leading-snug">${esc(job.name)}</h3>
+            <span class="text-[11px] font-mono text-slate-400 shrink-0">${esc(job.id)}</span>
+          </div>
+          <p class="text-sm text-slate-500 mt-0.5">${esc(job.customer)}</p>
+          ${job.address ? `<p class="text-xs text-slate-400 mt-1">${esc(job.address)}</p>` : ""}
+        </div>
+        <div class="px-4 py-3 bg-slate-50 border-b border-slate-100 space-y-1.5">
+          ${events.length ? events.map(eventRow).join("") : `<p class="text-xs text-slate-400">No matched dates yet</p>`}
+        </div>
+        <div class="px-4 py-3">
+          <div class="flex items-center gap-1.5 text-xs font-medium text-slate-600">
+            To-dos <span class="ml-auto text-slate-400 font-normal">${done}/${tasks.length}</span>
+          </div>
+          <ul class="mt-2 space-y-1.5">
+            ${tasks.length ? tasks.map(taskRow).join("") : `<li class="text-xs text-slate-400 italic">No matched to-dos</li>`}
+          </ul>
+        </div>
+      </div>`;
+    }
+
+    function column(stage, jobs){
+      const meta = STAGE_META[stage] || { dot: "bg-slate-300" };
+      return `<section class="flex flex-col gap-3">
+        <div class="flex items-center gap-2 px-1">
+          <span class="w-2 h-2 rounded-full ${meta.dot}"></span>
+          <h2 class="text-sm font-semibold text-slate-700">${esc(stage)}</h2>
+          <span class="text-xs text-slate-400">${jobs.length}</span>
+        </div>
+        <div class="flex flex-col gap-3">
+          ${jobs.length ? jobs.map(card).join("") : `<p class="text-xs text-slate-400 px-1 py-6 text-center border border-dashed border-slate-200 rounded-lg">No jobs</p>`}
+        </div>
+      </section>`;
+    }
+
+    async function load(){
+      const board = document.getElementById("board");
+      const banner = document.getElementById("banner");
+      const statusEl = document.getElementById("status");
+      board.innerHTML = `<p class="text-sm text-slate-400">Loading…</p>`;
+      banner.innerHTML = "";
+      try {
+        const res = await fetch("/api/board-data");
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        const stages = data.stages || ["Lead","Estimate","Work"];
+        const unstaged = (data.jobs||[]).filter(j => !stages.includes(j.stage));
+        board.innerHTML = stages.map(s => column(s, (data.jobs||[]).filter(j => j.stage === s))).join("");
+
+        const bits = [];
+        if (!data.googleConnected) {
+          bits.push(`<div class="mb-4 rounded-md border border-amber-200 bg-amber-50 text-amber-800 text-sm px-4 py-3">
+            Google Calendar & Tasks not connected yet — cards show jobs only.
+            <a href="/auth/google" class="font-medium underline">Connect Google →</a></div>`);
+        }
+        if (data.googleError) {
+          bits.push(`<div class="mb-4 rounded-md border border-red-200 bg-red-50 text-red-700 text-sm px-4 py-3">Google error: ${esc(data.googleError)}</div>`);
+        }
+        if (unstaged.length) {
+          bits.push(`<div class="mb-4 rounded-md border border-slate-200 bg-white text-slate-600 text-sm px-4 py-3">
+            ${unstaged.length} job(s) didn't map to Lead/Estimate/Work (raw stage values: ${esc([...new Set(unstaged.map(j=>j.rawStage))].slice(0,6).join(", "))}). We can adjust the mapping.</div>`);
+        }
+        banner.innerHTML = bits.join("");
+        statusEl.textContent = `${(data.jobs||[]).length} jobs · updated ${new Date(data.generatedAt).toLocaleTimeString()}`;
+      } catch (e) {
+        board.innerHTML = "";
+        banner.innerHTML = `<div class="rounded-md border border-red-200 bg-red-50 text-red-700 text-sm px-4 py-3">Couldn't load board: ${esc(e.message)}</div>`;
+      }
+    }
+
+    document.getElementById("refresh").addEventListener("click", load);
+    load();
+    setInterval(load, 20 * 60 * 1000); // auto-refresh every 20 min
+  </script>
+</body>
+</html>

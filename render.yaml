@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: war-board
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: REQUIRE_LOGIN
+        value: "true"
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: GOOGLE_SCOPES
+        value: https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/tasks.readonly
+      # Secrets — set these in the Render dashboard (sync:false keeps them out of git):
+      - key: LEAP_API_KEY
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REFRESH_TOKEN
+        sync: false
+      - key: BASE_URL
+        sync: false
