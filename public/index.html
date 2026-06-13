@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>War Board — Job Progress</title>
+  <link rel="icon" type="image/png" href="https://palmbeachpremierremodeling.com/wp-content/uploads/cropped-Palm-Beach-logo-270x270.png" />
   <script src="https://cdn.tailwindcss.com"></script>
   <style> body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; } </style>
 </head>
@@ -12,7 +13,7 @@
     <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
       <div>
         <h1 class="text-xl font-bold text-white">War Board</h1>
-        <p class="text-xs text-slate-400 mt-0.5">Leap CRM · Google Calendar · Google Tasks</p>
+        <p class="text-xs text-slate-400 mt-0.5">Leap CRM · Google Calendar · Google Tasks · Google Drive</p>
       </div>
       <div class="flex items-center gap-3">
         <span id="status" class="text-xs text-slate-400"></span>
@@ -23,15 +24,19 @@
 
   <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
     <div id="banner"></div>
-    <div id="tabs" class="flex gap-2 mb-5 overflow-x-auto pb-1"></div>
+    <div class="flex items-center justify-between gap-4 mb-5">
+      <div id="tabs" class="flex gap-2 overflow-x-auto pb-1"></div>
+      <img src="https://palmbeachpremierremodeling.com/wp-content/uploads/Palm-Beach-logo-150x150.png"
+           alt="Palm Beach Premier Remodeling" class="h-12 w-auto shrink-0 rounded" />
+    </div>
     <div id="board" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
   </main>
 
   <script>
     const STAGE_META = {
-      Lead:     { dot: "bg-sky-400" },
-      Estimate: { dot: "bg-violet-400" },
-      Work:     { dot: "bg-emerald-400" },
+      Lead:     { dot: "bg-sky-400",     banner: "bg-sky-50" },
+      Estimate: { dot: "bg-violet-400",  banner: "bg-violet-50" },
+      Work:     { dot: "bg-emerald-400", banner: "bg-emerald-50" },
     };
     const TYPE_STYLE = {
       delivery: { label: "Delivery", cls: "text-amber-700 bg-amber-50 border-amber-200" },
@@ -89,8 +94,9 @@
       const subline = hasCustomer ? clip(job.name, 70) : "";
       const driveQuery = encodeURIComponent("type:folder " + (hasCustomer ? job.customer : job.name));
       const driveUrl = `https://drive.google.com/drive/search?q=${driveQuery}&authuser=admin@pbprinc.com`;
+      const sm = STAGE_META[job.stage] || {};
       return `<div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-        <div class="px-4 pt-4 pb-3 border-b border-slate-100">
+        <div class="px-4 pt-4 pb-3 border-b border-slate-100 ${sm.banner || ""}">
           <div class="flex items-baseline justify-between gap-2">
             <h3 class="font-semibold text-slate-900 text-[15px] leading-snug" title="${esc(job.name)}">${esc(title)}</h3>
             <div class="shrink-0 text-right leading-tight">
