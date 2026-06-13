@@ -136,6 +136,30 @@ app.get("/api/debug/leap-full", async (req, res) => {
   catch (e) { res.status(502).json({ error: e.message }); }
 });
 
+// ---- Probe a job's documents/files endpoints (run once to discover the API) ----
+app.get("/api/debug/documents", async (req, res) => {
+  const jobId = req.query.jobId;
+  if (!jobId) return res.status(400).json({ error: "Add ?jobId=NUMBER (e.g. 7889348)" });
+  const candidates = [
+    `/jobs/${jobId}/proposals`,
+    `/jobs/${jobId}/documents`,
+    `/jobs/${jobId}/files`,
+    `/jobs/${jobId}/photos`,
+    `/jobs/${jobId}`,
+  ];
+  const out = {};
+  for (const p of candidates) {
+    try {
+      const json = await leap.rawGet(p);
+      const rows = json.data || json.results || json.items || (Array.isArray(json) ? json : [json]);
+      out[p] = { ok: true, count: Array.isArray(rows) ? rows.length : 0, sampleKeys: Object.keys(rows[0] || {}), sample: rows[0] || null };
+    } catch (e) {
+      out[p] = { ok: false, error: e.message };
+    }
+  }
+  res.json(out);
+});
+
 // ---- Distinct stage names + counts (for building the column mapping) ----
 app.get("/api/debug/stages", async (req, res) => {
   try {
