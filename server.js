@@ -142,9 +142,11 @@ app.get("/api/debug/documents", async (req, res) => {
   if (!jobId) return res.status(400).json({ error: "Add ?jobId=NUMBER (e.g. 7889348)" });
   const candidates = [
     `/jobs/${jobId}/proposals`,
+    `/jobs/${jobId}/worksheets`,
     `/jobs/${jobId}/documents`,
+    `/proposals?job_id=${jobId}`,
+    `/worksheets?job_id=${jobId}`,
     `/jobs/${jobId}/files`,
-    `/jobs/${jobId}/photos`,
     `/jobs/${jobId}`,
   ];
   const out = {};
