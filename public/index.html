@@ -23,6 +23,7 @@
 
   <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
     <div id="banner"></div>
+    <div id="tabs" class="flex gap-2 mb-5 overflow-x-auto pb-1"></div>
     <div id="board" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
   </main>
 
@@ -105,19 +106,46 @@
       </section>`;
     }
 
+    let lastData = null;
+    let activeTab = "All";
+
+    function renderTabs(){
+      if (!lastData) return;
+      const stages = lastData.stages || ["Lead","Estimate","Work"];
+      const counts = {};
+      (lastData.jobs||[]).forEach(j => { counts[j.stage] = (counts[j.stage]||0) + 1; });
+      const tabs = [["All", (lastData.jobs||[]).length], ...stages.map(s => [s, counts[s]||0])];
+      const el = document.getElementById("tabs");
+      el.innerHTML = tabs.map(([name,n]) => {
+        const on = activeTab === name;
+        return `<button data-tab="${name}" class="px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap border transition ${on ? 'bg-white text-black border-white' : 'bg-neutral-900 text-slate-300 border-neutral-700 hover:bg-neutral-800'}">${esc(name)} <span class="opacity-60 font-normal">${n}</span></button>`;
+      }).join("");
+      el.querySelectorAll("button").forEach(b => b.addEventListener("click", () => { activeTab = b.dataset.tab; render(); }));
+    }
+
+    function render(){
+      if (!lastData) return;
+      const stages = lastData.stages || ["Lead","Estimate","Work"];
+      const shown = activeTab === "All" ? stages : [activeTab];
+      const board = document.getElementById("board");
+      board.className = activeTab === "All"
+        ? "grid grid-cols-1 md:grid-cols-3 gap-4"
+        : "grid grid-cols-1 gap-4 max-w-2xl mx-auto";
+      board.innerHTML = shown.map(s => column(s, (lastData.jobs||[]).filter(j => j.stage === s))).join("");
+      document.getElementById("status").textContent =
+        `${(lastData.jobs||[]).length} jobs · updated ${new Date(lastData.generatedAt).toLocaleTimeString()}`;
+      renderTabs();
+    }
+
     async function load(force){
       const board = document.getElementById("board");
       const banner = document.getElementById("banner");
-      const statusEl = document.getElementById("status");
-      board.innerHTML = `<p class="text-sm text-slate-400">Loading…</p>`;
-      banner.innerHTML = "";
+      if (!lastData) board.innerHTML = `<p class="text-sm text-slate-400">Loading…</p>`;
       try {
         const res = await fetch("/api/board-data" + (force ? "?force=1" : ""));
         const data = await res.json();
         if (data.error) throw new Error(data.error);
-
-        const stages = data.stages || ["Lead","Estimate","Work"];
-        board.innerHTML = stages.map(s => column(s, (data.jobs||[]).filter(j => j.stage === s))).join("");
+        lastData = data;
 
         const bits = [];
         if (!data.googleConnected) {
@@ -132,9 +160,9 @@
           bits.push(`<div class="mb-4 rounded-md border border-amber-200 bg-amber-50 text-amber-800 text-sm px-4 py-3">Showing recent data — couldn't refresh just now (${esc(data.refreshError)}). Try again shortly.</div>`);
         }
         banner.innerHTML = bits.join("");
-        statusEl.textContent = `${(data.jobs||[]).length} jobs · updated ${new Date(data.generatedAt).toLocaleTimeString()}`;
+        render();
       } catch (e) {
-        board.innerHTML = "";
+        if (!lastData) board.innerHTML = "";
         banner.innerHTML = `<div class="rounded-md border border-red-200 bg-red-50 text-red-700 text-sm px-4 py-3">Couldn't load board: ${esc(e.message)}</div>`;
       }
     }
