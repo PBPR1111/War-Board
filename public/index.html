@@ -22,10 +22,12 @@
         <h1 class="text-xl font-bold text-white">War Board</h1>
         <p class="text-xs text-slate-400 mt-0.5">Leap CRM · Google Calendar · Google Tasks · Google Drive</p>
       </div>
-      <div class="flex items-center gap-3">
-        <span id="status" class="text-xs text-slate-400"></span>
-        <a href="https://www.jobprogress.com/app/#/task/pending" target="_blank" rel="noopener" class="text-xs font-medium text-slate-200 border border-neutral-700 rounded-md px-3 py-1.5 hover:bg-neutral-800">Leap Tasks ↗</a>
-        <button id="refresh" class="text-xs font-medium text-slate-200 border border-neutral-700 rounded-md px-3 py-1.5 hover:bg-neutral-800">Refresh</button>
+      <div class="flex flex-col items-end gap-1.5">
+        <div class="flex items-center gap-2">
+          <a href="https://www.jobprogress.com/app/#/task/pending" target="_blank" rel="noopener" class="text-xs font-medium text-slate-200 border border-neutral-700 rounded-md px-3 py-1.5 hover:bg-neutral-800">Leap Tasks ↗</a>
+          <button id="refresh" class="text-xs font-medium text-slate-200 border border-neutral-700 rounded-md px-3 py-1.5 hover:bg-neutral-800">Refresh</button>
+        </div>
+        <span id="status" class="text-xs text-slate-400 text-right"></span>
       </div>
     </div>
   </header>
