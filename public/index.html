@@ -7,16 +7,16 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <style> body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; } </style>
 </head>
-<body class="bg-slate-100">
-  <header class="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10">
+<body class="bg-black">
+  <header class="bg-neutral-900 border-b border-neutral-800 px-6 py-4 sticky top-0 z-10">
     <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
       <div>
-        <h1 class="text-xl font-bold text-slate-900">War Board</h1>
+        <h1 class="text-xl font-bold text-white">War Board</h1>
         <p class="text-xs text-slate-400 mt-0.5">Leap CRM · Google Calendar · Google Tasks</p>
       </div>
       <div class="flex items-center gap-3">
         <span id="status" class="text-xs text-slate-400"></span>
-        <button id="refresh" class="text-xs font-medium text-slate-600 border border-slate-200 rounded-md px-3 py-1.5 hover:bg-slate-50">Refresh</button>
+        <button id="refresh" class="text-xs font-medium text-slate-200 border border-neutral-700 rounded-md px-3 py-1.5 hover:bg-neutral-800">Refresh</button>
       </div>
     </div>
   </header>
@@ -38,6 +38,7 @@
     };
 
     function esc(s){ return String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+    function clip(s, n){ s = String(s ?? "").trim(); return s.length > n ? s.slice(0, n).trim() + "…" : s; }
     function fmtDate(d){ if(!d) return ""; const dt=new Date(d+"T00:00:00"); return dt.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"}); }
     function daysUntil(d){ const today=new Date(); today.setHours(0,0,0,0); const dt=new Date(d+"T00:00:00"); const n=Math.round((dt-today)/86400000); if(n===0)return"Today"; if(n===1)return"Tomorrow"; if(n<0)return Math.abs(n)+"d ago"; return"in "+n+"d"; }
 
@@ -61,13 +62,16 @@
       const events = [...(job.calendarEvents||[])].sort((a,b)=>(a.date||"").localeCompare(b.date||""));
       const tasks = job.tasks||[];
       const done = tasks.filter(t=>t.done).length;
+      const hasCustomer = job.customer && job.customer !== "—";
+      const title = hasCustomer ? job.customer : clip(job.name, 60);
+      const subline = hasCustomer ? clip(job.name, 70) : "";
       return `<div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
         <div class="px-4 pt-4 pb-3 border-b border-slate-100">
           <div class="flex items-baseline justify-between gap-2">
-            <h3 class="font-semibold text-slate-900 text-[15px] leading-snug">${esc(job.name)}</h3>
+            <h3 class="font-semibold text-slate-900 text-[15px] leading-snug" title="${esc(job.name)}">${esc(title)}</h3>
             <span class="text-[11px] font-mono text-slate-400 shrink-0">${esc(job.id)}</span>
           </div>
-          <p class="text-sm text-slate-500 mt-0.5">${esc(job.customer)}</p>
+          ${subline ? `<p class="text-sm text-slate-500 mt-0.5">${esc(subline)}</p>` : ""}
           ${job.address ? `<p class="text-xs text-slate-400 mt-1">${esc(job.address)}</p>` : ""}
         </div>
         <div class="px-4 py-3 bg-slate-50 border-b border-slate-100 space-y-1.5">
@@ -81,19 +85,22 @@
             ${tasks.length ? tasks.map(taskRow).join("") : `<li class="text-xs text-slate-400 italic">No matched to-dos</li>`}
           </ul>
         </div>
+        ${job.crmUrl ? `<div class="px-4 py-2.5 border-t border-slate-100">
+          <a href="${esc(job.crmUrl)}" target="_blank" rel="noopener" class="text-xs font-medium text-sky-600 hover:text-sky-700 hover:underline inline-flex items-center gap-1">📎 Files in CRM →</a>
+        </div>` : ""}
       </div>`;
     }
 
     function column(stage, jobs){
       const meta = STAGE_META[stage] || { dot: "bg-slate-300" };
       return `<section class="flex flex-col gap-3">
-        <div class="flex items-center gap-2 px-1">
-          <span class="w-2 h-2 rounded-full ${meta.dot}"></span>
-          <h2 class="text-sm font-semibold text-slate-700">${esc(stage)}</h2>
-          <span class="text-xs text-slate-400">${jobs.length}</span>
+        <div class="flex items-center gap-2.5 px-1 mb-1">
+          <span class="w-3 h-3 rounded-full ${meta.dot}"></span>
+          <h2 class="text-2xl font-bold text-white">${esc(stage)}</h2>
+          <span class="text-sm text-slate-400 font-medium">${jobs.length}</span>
         </div>
         <div class="flex flex-col gap-3">
-          ${jobs.length ? jobs.map(card).join("") : `<p class="text-xs text-slate-400 px-1 py-6 text-center border border-dashed border-slate-200 rounded-lg">No jobs</p>`}
+          ${jobs.length ? jobs.map(card).join("") : `<p class="text-xs text-slate-500 px-1 py-6 text-center border border-dashed border-neutral-700 rounded-lg">No jobs</p>`}
         </div>
       </section>`;
     }
@@ -110,7 +117,6 @@
         if (data.error) throw new Error(data.error);
 
         const stages = data.stages || ["Lead","Estimate","Work"];
-        const unstaged = (data.jobs||[]).filter(j => !stages.includes(j.stage));
         board.innerHTML = stages.map(s => column(s, (data.jobs||[]).filter(j => j.stage === s))).join("");
 
         const bits = [];
@@ -124,10 +130,6 @@
         }
         if (data.refreshError) {
           bits.push(`<div class="mb-4 rounded-md border border-amber-200 bg-amber-50 text-amber-800 text-sm px-4 py-3">Showing recent data — couldn't refresh just now (${esc(data.refreshError)}). Try again shortly.</div>`);
-        }
-        if (unstaged.length) {
-          bits.push(`<div class="mb-4 rounded-md border border-slate-200 bg-white text-slate-600 text-sm px-4 py-3">
-            ${unstaged.length} job(s) didn't map to Lead/Estimate/Work (raw stage values: ${esc([...new Set(unstaged.map(j=>j.rawStage))].slice(0,6).join(", "))}). We can adjust the mapping.</div>`);
         }
         banner.innerHTML = bits.join("");
         statusEl.textContent = `${(data.jobs||[]).length} jobs · updated ${new Date(data.generatedAt).toLocaleTimeString()}`;
