@@ -175,7 +175,8 @@
       board.className = activeTab === "All"
         ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4"
         : "grid grid-cols-1 gap-4 max-w-2xl mx-auto";
-      board.innerHTML = shown.map(s => column(s, (lastData.jobs||[]).filter(j => j.stage === s))).join("");
+      const byStageDate = (a,b) => String(b.stageChangedAt||"").localeCompare(String(a.stageChangedAt||""));
+      board.innerHTML = shown.map(s => column(s, (lastData.jobs||[]).filter(j => j.stage === s).sort(byStageDate))).join("");
       document.getElementById("status").textContent =
         `${(lastData.jobs||[]).length} jobs · updated ${new Date(lastData.generatedAt).toLocaleTimeString()}`;
       renderTabs();
