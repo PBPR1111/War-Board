@@ -130,6 +130,26 @@ app.get("/api/status", (req, res) => {
   });
 });
 
+// ---- Diagnose domain-wide Google (service account) ----
+app.get("/api/debug/google", async (req, res) => {
+  const out = { saConfigured: googleSvc.saConfigured() };
+  try {
+    const u = await googleSvc.listDomainUsers();
+    out.userCount = u.length;
+    out.usersSample = u.slice(0, 8);
+  } catch (e) { out.usersError = e.message; }
+  try {
+    const t = await googleSvc.fetchTasks();
+    out.taskCount = t.length;
+    out.kassalTasks = t.filter((x) => /kassal/i.test((x.text || "") + " " + (x.notes || ""))).map((x) => x.text);
+  } catch (e) { out.tasksError = e.message; }
+  try {
+    const ev = await googleSvc.fetchCalendarEvents();
+    out.eventCount = ev.length;
+  } catch (e) { out.eventsError = e.message; }
+  res.json(out);
+});
+
 // ---- Individual sources (handy for debugging) ----
 app.get("/api/jobs", async (req, res) => {
   try { res.json(await leap.fetchJobs()); }
