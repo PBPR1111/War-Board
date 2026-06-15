@@ -56,6 +56,7 @@
 
     function esc(s){ return String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
     function clip(s, n){ s = String(s ?? "").trim(); return s.length > n ? s.slice(0, n).trim() + "…" : s; }
+    function money(n){ const v = Number(n)||0; return "$" + v.toLocaleString("en-US", {maximumFractionDigits:0}); }
     function fmtDate(d){ if(!d) return ""; const dt=new Date(d+"T00:00:00"); return dt.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"}); }
     function daysUntil(d){ const today=new Date(); today.setHours(0,0,0,0); const dt=new Date(d+"T00:00:00"); const n=Math.round((dt-today)/86400000); if(n===0)return"Today"; if(n===1)return"Tomorrow"; if(n<0)return Math.abs(n)+"d ago"; return"in "+n+"d"; }
 
@@ -129,6 +130,11 @@
             ${tasks.length ? tasks.map(taskRow).join("") : `<li class="text-xs text-slate-400 italic">No matched to-dos</li>`}
           </ul>
         </div>
+        ${(() => { const f = job.financial || {}; const has = (f.total||f.paid||f.owed);
+          return has ? `<div class="px-4 py-2.5 border-t border-slate-100 text-xs text-slate-600">
+            <span class="font-semibold text-slate-500 uppercase tracking-wide text-[10px]">QB</span>
+            <span class="ml-1">Total ${money(f.total)} · Paid ${money(f.paid)} · Owed <span class="${f.owed>0?'text-red-600 font-medium':''}">${money(f.owed)}</span></span>
+          </div>` : ""; })()}
         <div class="px-4 py-2.5 border-t border-slate-100 space-y-1.5">
           ${job.crmUrl ? `<a href="${esc(job.crmUrl)}" target="_blank" rel="noopener" class="block text-xs font-medium text-sky-600 hover:text-sky-700 hover:underline">📎 Files in CRM →</a>` : ""}
           <a href="${driveUrl}" target="_blank" rel="noopener" class="block text-xs font-medium text-sky-600 hover:text-sky-700 hover:underline">📁 Drive folder →</a>
