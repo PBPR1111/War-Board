@@ -2,6 +2,16 @@
 // route to Google's OAuth token endpoint drops mid-handshake, which surfaces as
 // "Premature close" on every Calendar/Tasks call. Forcing IPv4 avoids that.
 require("dns").setDefaultResultOrder("ipv4first");
+
+// Node 19+ enables HTTP keep-alive on the global agent by default. The Google
+// auth libraries (via node-fetch) then reuse sockets that Google's token
+// endpoint has already closed, which throws "Premature close" on nearly every
+// request. Disable keep-alive so each call to Google opens a fresh connection.
+const http = require("http");
+const https = require("https");
+http.globalAgent = new http.Agent({ keepAlive: false });
+https.globalAgent = new https.Agent({ keepAlive: false });
+
 require("dotenv").config();
 const path = require("path");
 const express = require("express");
@@ -136,7 +146,7 @@ app.get("/api/status", (req, res) => {
 
 // ---- Diagnose domain-wide Google (service account) ----
 app.get("/api/debug/google", async (req, res) => {
-  const out = { saConfigured: googleSvc.saConfigured() };
+  const out = { build: "2026-06-18-keepalive", node: process.version, saConfigured: googleSvc.saConfigured() };
   try {
     const u = await googleSvc.listDomainUsers();
     out.userCount = u.length;
