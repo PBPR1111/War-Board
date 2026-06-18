@@ -17,17 +17,29 @@
 </head>
 <body class="bg-black">
   <header class="bg-neutral-900 border-b border-neutral-800 px-6 py-4 sticky top-0 z-10">
-    <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
-      <div>
-        <h1 class="text-xl font-bold text-white">War Board</h1>
-        <p class="text-xs text-slate-400 mt-0.5">Leap CRM · Google Calendar · Google Tasks · Google Drive</p>
-      </div>
-      <div class="flex flex-col items-end gap-1.5">
-        <div class="flex items-center gap-2">
-          <a href="https://www.jobprogress.com/app/#/task/pending" target="_blank" rel="noopener" class="text-xs font-medium text-slate-200 border border-neutral-700 rounded-md px-3 py-1.5 hover:bg-neutral-800">Leap Tasks ↗</a>
-          <button id="refresh" class="text-xs font-medium text-slate-200 border border-neutral-700 rounded-md px-3 py-1.5 hover:bg-neutral-800">Refresh</button>
+    <div class="max-w-7xl mx-auto">
+      <div class="flex items-center justify-between gap-4">
+        <div>
+          <h1 class="text-xl font-bold text-white">War Board</h1>
+          <p class="text-xs text-slate-400 mt-0.5">Leap CRM · Google Calendar · Google Tasks · Google Drive</p>
         </div>
-        <span id="status" class="text-xs text-slate-400 text-right"></span>
+        <div class="flex flex-col items-end gap-1.5">
+          <div class="flex items-center gap-2">
+            <a href="https://www.jobprogress.com/app/#/task/pending" target="_blank" rel="noopener" class="text-xs font-medium text-slate-200 border border-neutral-700 rounded-md px-3 py-1.5 hover:bg-neutral-800">Leap Tasks ↗</a>
+            <button id="refresh" class="text-xs font-medium text-slate-200 border border-neutral-700 rounded-md px-3 py-1.5 hover:bg-neutral-800">Refresh</button>
+          </div>
+          <span id="status" class="text-xs text-slate-400 text-right"></span>
+        </div>
+      </div>
+      <div class="relative mt-3">
+        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="9" cy="9" r="6"></circle><line x1="14" y1="14" x2="18" y2="18" stroke-linecap="round"></line>
+        </svg>
+        <input id="search" type="search" autocomplete="off" enterkeyhint="search"
+          placeholder="Search projects by name, customer, city, or address…"
+          class="w-full bg-neutral-800 border border-neutral-700 rounded-lg pl-9 pr-9 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" />
+        <button id="search-clear" type="button" aria-label="Clear search"
+          class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-sm leading-none px-1">✕</button>
       </div>
     </div>
   </header>
@@ -158,13 +170,23 @@
 
     let lastData = null;
     let activeTab = "All";
+    let searchQuery = "";
+
+    function matchesSearch(job){
+      const q = searchQuery.trim().toLowerCase();
+      if (!q) return true;
+      return [job.name, job.customer, job.city, job.address]
+        .some(v => String(v ?? "").toLowerCase().includes(q));
+    }
+    function filteredJobs(){ return (lastData.jobs||[]).filter(matchesSearch); }
 
     function renderTabs(){
       if (!lastData) return;
       const stages = lastData.stages || ["Lead","Estimate","Work"];
+      const jobs = filteredJobs();
       const counts = {};
-      (lastData.jobs||[]).forEach(j => { counts[j.stage] = (counts[j.stage]||0) + 1; });
-      const tabs = [["All", (lastData.jobs||[]).length], ...stages.map(s => [s, counts[s]||0])];
+      jobs.forEach(j => { counts[j.stage] = (counts[j.stage]||0) + 1; });
+      const tabs = [["All", jobs.length], ...stages.map(s => [s, counts[s]||0])];
       const el = document.getElementById("tabs");
       el.innerHTML = tabs.map(([name,n]) => {
         const on = activeTab === name;
@@ -182,9 +204,14 @@
         ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4"
         : "grid grid-cols-1 gap-4 max-w-2xl mx-auto";
       const byStageDate = (a,b) => String(b.stageChangedAt||"").localeCompare(String(a.stageChangedAt||""));
-      board.innerHTML = shown.map(s => column(s, (lastData.jobs||[]).filter(j => j.stage === s).sort(byStageDate))).join("");
+      const jobs = filteredJobs();
+      board.innerHTML = shown.map(s => column(s, jobs.filter(j => j.stage === s).sort(byStageDate))).join("");
+      const total = (lastData.jobs||[]).length;
+      const q = searchQuery.trim();
+      const updated = `updated ${new Date(lastData.generatedAt).toLocaleTimeString()}`;
       document.getElementById("status").textContent =
-        `${(lastData.jobs||[]).length} jobs · updated ${new Date(lastData.generatedAt).toLocaleTimeString()}`;
+        q ? `${jobs.length} of ${total} jobs match “${q}” · ${updated}`
+          : `${total} jobs · ${updated}`;
       renderTabs();
     }
 
@@ -219,6 +246,20 @@
     }
 
     document.getElementById("refresh").addEventListener("click", () => load(true));
+
+    const searchEl = document.getElementById("search");
+    const searchClear = document.getElementById("search-clear");
+    function applySearch(){
+      searchQuery = searchEl.value;
+      searchClear.classList.toggle("hidden", !searchQuery);
+      if (lastData) render();
+    }
+    searchEl.addEventListener("input", applySearch);
+    searchEl.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") { searchEl.value = ""; applySearch(); }
+    });
+    searchClear.addEventListener("click", () => { searchEl.value = ""; applySearch(); searchEl.focus(); });
+
     load();
     setInterval(() => load(), 20 * 60 * 1000); // auto-refresh every 20 min (served from cache)
   </script>
