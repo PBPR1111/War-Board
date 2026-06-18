@@ -1,3 +1,7 @@
+// Prefer IPv4 when resolving hostnames. On some hosts (e.g. Render) the IPv6
+// route to Google's OAuth token endpoint drops mid-handshake, which surfaces as
+// "Premature close" on every Calendar/Tasks call. Forcing IPv4 avoids that.
+require("dns").setDefaultResultOrder("ipv4first");
 require("dotenv").config();
 const path = require("path");
 const express = require("express");
