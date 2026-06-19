@@ -86,6 +86,13 @@ function normalizeStage(raw) {
   return "Lead"; // default: show the job rather than hide it
 }
 
+// A job in a finished or dead CRM stage (Completed, Cancelled, Lost, …) should
+// drop off the active board entirely rather than linger under Work.
+function isTerminalStage(raw) {
+  const s = String(raw || "").trim().toLowerCase();
+  return /(complet|finished|\bdone\b|cancel|\blost\b|\bdead\b|abandon)/.test(s);
+}
+
 function customerName(c) {
   // Prefer the BUSINESS/company name (e.g. "Group 9") over the contact person.
   return (
@@ -154,6 +161,14 @@ function normalizeJob(j, customersById) {
     city: cityFromAddress(address),
     stage: normalizeStage(rawStage),
     rawStage: String(rawStage || ""),
+    // When the job last changed stage — used to sort each column (newest on top).
+    stageChangedAt: pick(j, ["stage_last_modified", "updated_at", "awarded_date"], ""),
+    // QuickBooks financials (synced into JobProgress from QB Desktop).
+    financial: {
+      total: Number(pick(j, ["financial_details.total_job_price", "financial_details.final_job_total"], 0)) || 0,
+      paid: Number(pick(j, ["financial_details.total_payment_received"], 0)) || 0,
+      owed: Number(pick(j, ["financial_details.total_amount_owed"], 0)) || 0,
+    },
     crmUrl,
   };
 }
@@ -199,14 +214,18 @@ async function fetchSchedules() {
 async function fetchJobs() {
   const path = process.env.LEAP_JOBS_PATH || "/jobs";
   // Customers are needed for client name + address; tolerate failure gracefully.
+  // includes financial_details so each job carries QB totals (price/paid/owed).
   const [rows, customers] = await Promise.all([
-    leapGetAll(path),
+    leapGetAll(path, { "includes[]": "financial_details" }),
     fetchCustomersMap().catch(() => new Map()),
   ]);
   return rows
     // Drop jobs that are archived or deleted in the CRM (they shouldn't show on the board).
     .filter((j) => !j.archived && !j.deleted_at && !j.is_deleted)
-    .map((j) => normalizeJob(j, customers));
+    .map((j) => normalizeJob(j, customers))
+    // Drop jobs in a finished/dead CRM stage (e.g. Completed) — moving a job to
+    // Completed in the CRM should remove it from the board, not file it under Work.
+    .filter((j) => !isTerminalStage(j.rawStage));
 }
 
 // Raw passthrough for one page — used to inspect real schema during setup.
