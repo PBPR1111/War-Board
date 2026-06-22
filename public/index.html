@@ -56,10 +56,10 @@
 
   <script>
     const STAGE_META = {
-      Lead:     { dot: "bg-blue-500",   banner: "bg-blue-100" },
-      Estimate: { dot: "bg-purple-500", banner: "bg-purple-100" },
-      Proposal: { dot: "bg-green-500",  banner: "bg-green-100" },
-      Work:     { dot: "bg-amber-500",  banner: "bg-amber-100" },
+      Estimate:         { dot: "bg-purple-500", banner: "bg-purple-100" },
+      Proposal:         { dot: "bg-green-500",  banner: "bg-green-100" },
+      "Pre Production": { dot: "bg-orange-500", banner: "bg-orange-100" },
+      Work:             { dot: "bg-amber-500",  banner: "bg-amber-100" },
     };
     const TYPE_STYLE = {
       delivery: { label: "Delivery", cls: "text-amber-700 bg-amber-50 border-amber-200" },
@@ -150,6 +150,7 @@
         <div class="px-4 py-2.5 border-t border-slate-100 space-y-1.5">
           ${job.crmUrl ? `<a href="${esc(job.crmUrl)}" target="_blank" rel="noopener" class="block text-xs font-medium text-sky-600 hover:text-sky-700 hover:underline">📎 Files in CRM →</a>` : ""}
           <a href="${driveUrl}" target="_blank" rel="noopener" class="block text-xs font-medium text-sky-600 hover:text-sky-700 hover:underline">📁 Drive folder →</a>
+          ${job.summaryUrl ? `<a href="${esc(job.summaryUrl)}" target="_blank" rel="noopener" class="block text-xs font-medium text-sky-600 hover:text-sky-700 hover:underline">📄 Project Summary →</a>` : ""}
         </div>
       </div>`;
     }
@@ -182,7 +183,7 @@
 
     function renderTabs(){
       if (!lastData) return;
-      const stages = lastData.stages || ["Lead","Estimate","Work"];
+      const stages = lastData.stages || ["Estimate","Proposal","Pre Production","Work"];
       const jobs = filteredJobs();
       const counts = {};
       jobs.forEach(j => { counts[j.stage] = (counts[j.stage]||0) + 1; });
@@ -197,7 +198,7 @@
 
     function render(){
       if (!lastData) return;
-      const stages = lastData.stages || ["Lead","Estimate","Work"];
+      const stages = lastData.stages || ["Estimate","Proposal","Pre Production","Work"];
       const shown = activeTab === "All" ? stages : [activeTab];
       const board = document.getElementById("board");
       board.className = activeTab === "All"

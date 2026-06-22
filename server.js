@@ -164,6 +164,16 @@ app.get("/api/debug/google", async (req, res) => {
   res.json(out);
 });
 
+// ---- Diagnose Project Summary Drive links ----
+app.get("/api/debug/drive", async (req, res) => {
+  try {
+    const map = await googleSvc.fetchProjectSummaryLinks();
+    res.json({ count: map.size, sample: [...map.entries()].slice(0, 10) });
+  } catch (e) {
+    res.status(502).json({ error: e.message });
+  }
+});
+
 // ---- Individual sources (handy for debugging) ----
 app.get("/api/jobs", async (req, res) => {
   try { res.json(await leap.fetchJobs()); }
@@ -270,6 +280,8 @@ async function buildBoardPayload() {
   let events = [];
   let tasks = [];
   let googleError = null;
+  let summaryLinks = new Map();
+  let summaryError = null;
   if (googleSvc.isConnected()) {
     try {
       [events, tasks] = await Promise.all([
@@ -279,12 +291,23 @@ async function buildBoardPayload() {
     } catch (e) {
       googleError = e.message;
     }
+    // Project Summary doc links (Drive). Separate try/catch so a Drive issue
+    // (e.g. the read-only scope not yet authorized) never blanks the board.
+    try {
+      summaryLinks = await googleSvc.fetchProjectSummaryLinks();
+    } catch (e) {
+      summaryError = e.message;
+    }
   }
   const board = buildBoard(jobs, events, tasks);
+  for (const j of board.jobs) {
+    j.summaryUrl = summaryLinks.get(googleSvc.nameKey(j.customer)) || null;
+  }
   return {
     stages: leap.STAGES,
     googleConnected: googleSvc.isConnected(),
     googleError,
+    summaryError,
     generatedAt: new Date().toISOString(),
     ...board,
   };
