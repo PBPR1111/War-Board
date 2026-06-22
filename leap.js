@@ -63,27 +63,41 @@ function pick(obj, paths, fallback = "") {
   return fallback;
 }
 
+// Intentional mapping of THIS account's JobProgress stages to the four board
+// columns. A stage mapped to null is deliberately kept OFF the board (per the
+// account owner): Paid jobs, the early appointment stages, signed-not-started,
+// and dead leads. The board mirrors the CRM's Lead / Estimate / Proposal / Work
+// one-to-one.
+const STAGE_TO_COLUMN = {
+  "lead": "Lead",
+  "estimate": "Estimate",
+  "proposal": "Proposal",
+  "work": "Work",
+  // Deliberately hidden from the board:
+  "paid": null,
+  "showroom appointment": null,
+  "appointment set": null,
+  "on-site consultation": null,
+  "contract signed": null,
+  "bad lead -did not move forward": null,
+};
+
 function normalizeStage(raw) {
   const s = String(raw || "").trim().toLowerCase();
-  // Exact mapping of the real JobProgress stage names seen in this account.
-  const explicit = {
-    "lead": "Lead",
-    "showroom appointment": "Lead",
-    "on-site consultation": "Lead",
-    "appointment set": "Lead",
-    "estimate": "Estimate",
-    "proposal": "Proposal",
-    "work": "Work",
-    "contract signed": "Work",
-    "paid": "Work",
-  };
-  if (explicit[s]) return explicit[s];
-  // Keyword fallback so any future/renamed stage still lands somewhere sensible.
+  if (Object.prototype.hasOwnProperty.call(STAGE_TO_COLUMN, s)) return STAGE_TO_COLUMN[s];
+  // Unknown / renamed stage: don't silently drop a job — show it with a best
+  // guess so a new stage surfaces on the board instead of vanishing.
   if (/proposal/.test(s)) return "Proposal";
-  if (/(contract|sign|sold|award|won|paid|deposit|production|install|work|\bjob\b|complet|closed|invoic|schedul)/.test(s)) return "Work";
-  if (/(estimat|quote|\bbid\b|pending|presented|negotiat)/.test(s)) return "Estimate";
-  if (/(lead|appoint|showroom|consult|on[\s-]?site|prospect|\bnew\b|inquir|contact)/.test(s)) return "Lead";
-  return "Lead"; // default: show the job rather than hide it
+  if (/(estimat|quote|\bbid\b|negotiat)/.test(s)) return "Estimate";
+  if (/(install|production|\bwork\b|contract|sign)/.test(s)) return "Work";
+  return "Lead";
+}
+
+// A job in a finished or dead CRM stage (Completed, Cancelled, Lost, …) should
+// drop off the active board entirely rather than linger under Work.
+function isTerminalStage(raw) {
+  const s = String(raw || "").trim().toLowerCase();
+  return /(complet|finished|\bdone\b|cancel|\blost\b|\bdead\b|abandon)/.test(s);
 }
 
 function customerName(c) {
@@ -154,6 +168,14 @@ function normalizeJob(j, customersById) {
     city: cityFromAddress(address),
     stage: normalizeStage(rawStage),
     rawStage: String(rawStage || ""),
+    // When the job last changed stage — used to sort each column (newest on top).
+    stageChangedAt: pick(j, ["stage_last_modified", "updated_at", "awarded_date"], ""),
+    // QuickBooks financials (synced into JobProgress from QB Desktop).
+    financial: {
+      total: Number(pick(j, ["financial_details.total_job_price", "financial_details.final_job_total"], 0)) || 0,
+      paid: Number(pick(j, ["financial_details.total_payment_received"], 0)) || 0,
+      owed: Number(pick(j, ["financial_details.total_amount_owed"], 0)) || 0,
+    },
     crmUrl,
   };
 }
@@ -199,14 +221,22 @@ async function fetchSchedules() {
 async function fetchJobs() {
   const path = process.env.LEAP_JOBS_PATH || "/jobs";
   // Customers are needed for client name + address; tolerate failure gracefully.
+  // includes financial_details so each job carries QB totals (price/paid/owed).
   const [rows, customers] = await Promise.all([
-    leapGetAll(path),
+    leapGetAll(path, { "includes[]": "financial_details" }),
     fetchCustomersMap().catch(() => new Map()),
   ]);
   return rows
     // Drop jobs that are archived or deleted in the CRM (they shouldn't show on the board).
     .filter((j) => !j.archived && !j.deleted_at && !j.is_deleted)
-    .map((j) => normalizeJob(j, customers));
+    .map((j) => normalizeJob(j, customers))
+    // Drop jobs in a finished/dead CRM stage (e.g. Completed) — moving a job to
+    // Completed in the CRM should remove it from the board, not file it under Work.
+    .filter((j) => !isTerminalStage(j.rawStage))
+    // Drop jobs whose stage is intentionally hidden from the board (stage === null):
+    // Paid, Showroom Appointment, Appointment Set, On-Site Consultation,
+    // Contract Signed, Bad Lead. Keeps each column matched 1:1 to the CRM.
+    .filter((j) => j.stage !== null);
 }
 
 // Raw passthrough for one page — used to inspect real schema during setup.
